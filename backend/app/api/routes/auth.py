@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.auth.dependencies import get_current_user
 
+from app.auth.password import verify_password
+from app.schemas.user import Token 
 from app.auth.password import hash_password
 from app.database.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse
-from auth.jwt import create_access_token
+from app.schemas.user import UserCreate, UserResponse, UserLogin, UserResponse, Token
+from app.auth.jwt import create_access_token
 
 router = APIRouter(
     prefix="/auth",
@@ -66,7 +69,7 @@ def login(
             status_code = 401,
             detail = "Invalid email or Password"
         )
-    acess_token = create_access_token(
+    access_token = create_access_token(
         data = {"sub": db_user.email}
     )
 
@@ -75,5 +78,8 @@ def login(
         "token_type": "bearer"
     }
     
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
     

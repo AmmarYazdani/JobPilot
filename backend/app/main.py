@@ -1,7 +1,8 @@
-from email.mime import text
+from sqlalchemy import text
 
 from fastapi import FastAPI
 from app.api.routes.auth import router as auth_router
+from app.database.database import engine
 
 app = FastAPI()
 
