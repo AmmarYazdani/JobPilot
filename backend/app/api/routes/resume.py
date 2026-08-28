@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.resume.extractor import extract_resume_text
 from app.auth.dependencies import get_current_user
 from app.database.database import get_db
 from app.models.resume import Resume
@@ -36,10 +37,18 @@ def upload_resume(
     with file_path.open("wb") as buffer:
         buffer.write(file.file.read())
 
+    try:
+        parsed_text = extract_resume_text(str(file_path))
+    except Exception as e:
+        file_path.unlink(missing_ok=True)
+
+        raise HTTPException(status_code=400, detail=f"Error parsing resume: {str(e)}")
+
     resume = Resume(
         user_id = current_user.id,
-        filename=file.filename,
-        file_path=str(file_path)
+        filename = file.filename,
+        file_path = str(file_path),
+        parsed_text = parsed_text,
     )
 
     db.add(resume)
