@@ -1,21 +1,21 @@
 from pathlib import Path
 
-from pypdf import PdfReader
+
 from docx import Document
 
 def extract_pdf_text(file_path: str) -> str:
-    reader = PdfReader(file_path)
+    import pdfplumber
 
     text = []
 
-    for page in reader.pages:
-        page_text = page.extract_text()
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
 
-        if page_text:
-            text.append(page_text)
+            if page_text:
+                text.append(page_text)
 
     return "\n".join(text).strip()
-
 
 def extract_docx_text(file_path: str) -> str:
     document = Document(file_path)

@@ -1,6 +1,7 @@
 import re
 
-from app.schemas.resume import ResumeData
+from app.schemas.resume import ResumeData, ProjectData
+
 
 
 def extract_email(text: str) -> str | None:
@@ -84,11 +85,13 @@ def extract_section(
 
 def parse_resume(text: str) -> ResumeData:
 
+    skills = extract_skills(text)
+
     return ResumeData(
         name=extract_name(text),
         email=extract_email(text),
         phone=extract_phone(text),
-        skills=extract_skills(text),
+        skills=skills,
         education=extract_section(
             text,
             ["education", "academic background"]
@@ -101,10 +104,8 @@ def parse_resume(text: str) -> ResumeData:
                 "professional experience"
             ]
         ),
-        projects=extract_section(
-            text,
-            ["projects", "personal projects"]
-        ),
+        projects=extract_projects(
+            text, skills),
         certifications=extract_section(
             text,
             ["certifications", "certificates"]
@@ -158,3 +159,112 @@ def extract_skills(text: str) -> list[str]:
                     skills.append(skill)
 
     return skills
+
+def extract_projects(
+    text: str,
+    skills: list[str]
+) -> list[ProjectData]:
+
+    lines = text.splitlines()
+
+    projects = []
+    in_projects = False
+    current_project = None
+
+    section_headers = {
+        "professional summary",
+        "education",
+        "technical skills",
+        "skills",
+        "experience",
+        "work experience",
+        "professional experience",
+        "certifications",
+        "certificates",
+        "achievements",
+        "summary",
+        "profile",
+    }
+
+    for line in lines:
+        clean_line = line.strip()
+
+        if not clean_line:
+            continue
+
+        if clean_line.lower() == "projects":
+            in_projects = True
+            continue
+
+        if in_projects and clean_line.lower() in section_headers:
+            break
+
+        if not in_projects:
+            continue
+
+        clean_line = clean_line.lstrip("•- ").strip()
+
+        # A new project heading ends with a year.
+        year_match = re.search(r"\b(20\d{2})\s*$", clean_line)
+
+        if year_match:
+            year = year_match.group(1)
+
+            # Remove the year.
+            project_text = clean_line[:year_match.start()].strip()
+
+            technologies = []
+
+            # Split the project heading by commas.
+            parts = [
+                part.strip()
+                for part in project_text.split(",")
+                if part.strip()
+            ]
+
+            # First part contains the project title
+            # and possibly the first technology.
+            title_part = parts[0] if parts else project_text
+
+            # Check the remaining parts against detected skills.
+            for part in parts[1:]:
+                for skill in sorted(skills, key=len, reverse=True):
+                    if part.lower() == skill.lower():
+                        technologies.append(skill)
+                        break
+
+            # Check whether a technology is attached
+            # to the end of the project title.
+            for skill in sorted(skills, key=len, reverse=True):
+                pattern = r"\s+" + re.escape(skill) + r"$"
+
+                if re.search(pattern, title_part, re.IGNORECASE):
+                    technologies.insert(0, skill)
+
+                    title_part = re.sub(
+                        pattern,
+                        "",
+                        title_part,
+                        flags=re.IGNORECASE
+                    ).strip()
+
+                    break
+
+            # Clean leftover commas and spaces.
+            title = re.sub(r"\s*,\s*", " ", title_part)
+            title = re.sub(r"\s{2,}", " ", title)
+            title = title.strip(" :-,")
+
+            current_project = ProjectData(
+                title=title,
+                technologies=technologies,
+                year=year,
+                description=[]
+            )
+
+            projects.append(current_project)
+
+        elif current_project:
+            current_project.description.append(clean_line)
+
+    return projects
