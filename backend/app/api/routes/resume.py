@@ -8,6 +8,9 @@ from app.auth.dependencies import get_current_user
 from app.database.database import get_db
 from app.models.resume import Resume
 from app.models.user import User
+from app.resume.parser import parse_resume
+from app.schemas.resume import ResumeResponse
+
 
 router = APIRouter(
     prefix="/resumes",
@@ -15,7 +18,7 @@ router = APIRouter(
 )
 
 UPLOAD_DIR = Path("app/uploads/resumes")
-ALLOWED_EXTENSIONS = {".pdf",".dox"}
+ALLOWED_EXTENSIONS = {".pdf",".docx"}
 
 @router.post("/upload")
 def upload_resume(
@@ -39,6 +42,7 @@ def upload_resume(
 
     try:
         parsed_text = extract_resume_text(str(file_path))
+        parsed_data = parse_resume(parsed_text)
     except Exception as e:
         file_path.unlink(missing_ok=True)
 
@@ -49,6 +53,7 @@ def upload_resume(
         filename = file.filename,
         file_path = str(file_path),
         parsed_text = parsed_text,
+        parsed_data = parsed_data.model_dump() 
     )
 
     db.add(resume)
@@ -60,5 +65,11 @@ def upload_resume(
         "resume_id": resume.id,
         "filename": resume.filename,
     }
-
+@router.get("/", response_model = list[ResumeResponse])
+def get_reseumes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    resumes = db.query(Resume).filter(Resume.user_id == current_user.id).all()
+    return resumes
 

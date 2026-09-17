@@ -1,4 +1,6 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
+
 
 class ProjectData(BaseModel):
     title: str
@@ -18,3 +20,12 @@ class ResumeData(BaseModel):
     projects: list[ProjectData] = Field(default_factory=list)
     certifications: list[str] = Field(default_factory=list)
 
+class ResumeResponse(BaseModel):
+    id : int
+    filename : str
+    parsed_data : ResumeData | None = None
+    created_at : datetime
+    updated_at : datetime
+
+    class Config:
+        from_attributes = True

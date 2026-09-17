@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
 from app.database.database import Base
@@ -20,6 +21,8 @@ class Resume(Base):
     file_path = Column(Text, nullable=False)
 
     parsed_text = Column(Text, nullable=True)
+
+    parsed_data = Column(JSONB, nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),
